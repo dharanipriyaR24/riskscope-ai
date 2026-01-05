@@ -2,19 +2,20 @@
 __pycache__/
 *.pyc
 
-# Virtual environment
+# Virtual environments
 .venv/
 venv/
 
-# Local DB + artifacts
+# Data & artifacts
 risklens.duckdb
-*.duckdb
-*.duckdb.wal
-artifacts/
-*.joblib
+artifacts/*.joblib
 
-# OS / editor
-.vscode/
+# OS
 .DS_Store
 Thumbs.db
-.env
+
+# Streamlit
+.streamlit/
+
+# Docker
+*.log
