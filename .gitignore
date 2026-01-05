@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+
+# Local DB + artifacts
+risklens.duckdb
+*.duckdb
+*.duckdb.wal
+artifacts/
+*.joblib
+
+# OS / editor
+.vscode/
+.DS_Store
+Thumbs.db
+.env
