@@ -137,13 +137,6 @@ Producer (synthetic txns)
 
 ---
 
-## Author
-
-**Keerthana Senthil Raja** — MS Data Science, Seattle University  
-GitHub: https://github.com/Keerthana2001-ops
-
----
-
 ## License
 
 Add a `LICENSE` file in this repository if you plan to open-source under explicit terms.
