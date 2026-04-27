@@ -1,4 +1,4 @@
-# RiskLens AI
+# Risklens ai
 
 **Real-time bank fraud scoring, explainable ML (SHAP), AML-style graph signals, and a local LLM copilot—wired together with Kafka (Redpanda), DuckDB, and Streamlit.**
 
@@ -8,7 +8,7 @@
 
 ## What this project is
 
-RiskLens AI is a **local, end-to-end demo** of how fraud and AML teams often combine:
+Risklens ai is a **local, end-to-end demo** of how fraud and AML teams often combine:
 
 - **Streaming ingestion** of synthetic transactions (Kafka-compatible API via Redpanda).
 - **Gradient boosting** risk scores (scikit-learn pipeline with preprocessing).
