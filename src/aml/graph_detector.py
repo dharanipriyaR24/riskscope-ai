@@ -1,18 +1,14 @@
 import networkx as nx
 from collections import defaultdict, deque
 
+
 class AMLGraphDetector:
     """
     Simple in-memory AML graph detector.
     Tracks money flow and flags mule-like behavior.
     """
 
-    def __init__(
-        self,
-        window_size=500,
-        fan_threshold=10,
-        degree_threshold=15
-    ):
+    def __init__(self, window_size=500, fan_threshold=10, degree_threshold=15):
         self.G = nx.DiGraph()
         self.recent_edges = deque(maxlen=window_size)
 
@@ -49,12 +45,14 @@ class AMLGraphDetector:
                 and fan_out >= self.fan_threshold
                 and total_degree >= self.degree_threshold
             ):
-                alerts.append({
-                    "node": node,
-                    "fan_in": fan_in,
-                    "fan_out": fan_out,
-                    "total_degree": total_degree
-                })
+                alerts.append(
+                    {
+                        "node": node,
+                        "fan_in": fan_in,
+                        "fan_out": fan_out,
+                        "total_degree": total_degree,
+                    }
+                )
 
         return alerts
 

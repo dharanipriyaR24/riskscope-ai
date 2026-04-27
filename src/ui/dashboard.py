@@ -29,12 +29,14 @@ st.title("RiskLens AI — Bank Fraud Analyst Dashboard")
 # Read-only DB connection (avoids Windows lock issues)
 con = duckdb.connect(DB_PATH, read_only=True)
 
+
 # =========================
 # HELPERS
 # =========================
 def table_columns(conn, table_name: str) -> set:
     cols = conn.execute(f"PRAGMA table_info('{table_name}')").df()
     return set(cols["name"].tolist())
+
 
 def get_latest_rows(min_risk: int, limit: int) -> pd.DataFrame:
     return con.execute(
@@ -45,8 +47,9 @@ def get_latest_rows(min_risk: int, limit: int) -> pd.DataFrame:
         ORDER BY ts DESC
         LIMIT ?
         """,
-        [min_risk, limit]
+        [min_risk, limit],
     ).df()
+
 
 def get_overview():
     try:
@@ -56,12 +59,11 @@ def get_overview():
     except Exception:
         return 0, None
 
+
 # =========================
 # TABS
 # =========================
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["🚨 Fraud Alerts", "🧠 AML Signals", "🤖 Copilot", "⚙️ Ops"]
-)
+tab1, tab2, tab3, tab4 = st.tabs(["🚨 Fraud Alerts", "🧠 AML Signals", "🤖 Copilot", "⚙️ Ops"])
 
 # =========================
 # TAB 1: FRAUD ALERTS
@@ -102,7 +104,9 @@ with tab1:
                     tokens.append(p.split("(")[0])
         if tokens:
             top = pd.Series(tokens).value_counts().head(10)
-            st.dataframe(top.reset_index().rename(columns={"index": "feature", 0: "count"}), hide_index=True)
+            st.dataframe(
+                top.reset_index().rename(columns={"index": "feature", 0: "count"}), hide_index=True
+            )
 
 # =========================
 # TAB 2: AML SIGNALS
@@ -124,7 +128,7 @@ with tab2:
             ORDER BY ts DESC
             LIMIT ?
             """,
-            [n]
+            [n],
         ).df()
 
         if len(edges) == 0:
@@ -146,8 +150,9 @@ with tab2:
             )
 
             st.dataframe(
-                merged[merged["mule_score"] >= threshold]
-                .head(100)[["acct", "fan_in", "fan_out", "mule_score"]],
+                merged[merged["mule_score"] >= threshold].head(100)[
+                    ["acct", "fan_in", "fan_out", "mule_score"]
+                ],
                 use_container_width=True,
                 hide_index=True,
             )
@@ -220,7 +225,7 @@ with tab4:
         "python -m src.stream.consumer_to_db\n"
         "python -m src.stream.producer\n"
         "streamlit run src/ui/dashboard.py",
-        language="powershell",
+        language="bash",
     )
 
     st.caption("Keep consumer running. Dashboard is read-only to avoid DB locks.")

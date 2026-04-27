@@ -5,6 +5,7 @@ from src.data.generate_transactions import stream_batch
 TOPIC = "transactions"
 BOOTSTRAP = "localhost:9092"
 
+
 def main():
     producer = KafkaProducer(
         bootstrap_servers=BOOTSTRAP,
@@ -17,6 +18,7 @@ def main():
 
     producer.flush()
     print("Done producing transactions.")
+
 
 if __name__ == "__main__":
     main()

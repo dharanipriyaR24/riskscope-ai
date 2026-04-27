@@ -16,7 +16,8 @@ ALERT_THRESHOLD = 80.0
 def init_db():
     # Create table once
     with duckdb.connect(DB_PATH) as con:
-        con.execute("""
+        con.execute(
+            """
             CREATE TABLE IF NOT EXISTS scored_transactions (
                 transaction_id VARCHAR,
                 ts VARCHAR,
@@ -33,7 +34,8 @@ def init_db():
                 risk_score DOUBLE,
                 reasons VARCHAR
             );
-        """)
+        """
+        )
 
 
 def main():
@@ -65,12 +67,11 @@ def main():
         # Pull account fields if present; safe fallbacks if not
         customer_id = int(txn.get("customer_id", 0))
         from_acct = int(txn.get("from_acct", customer_id))  # fallback: customer_id
-        to_acct = int(txn.get("to_acct", 0))                # fallback: 0 (unknown)
+        to_acct = int(txn.get("to_acct", 0))  # fallback: 0 (unknown)
 
         # IMPORTANT: model should not see non-feature cols
         X = pd.DataFrame([txn]).drop(
-            columns=["transaction_id", "ts", "from_acct", "to_acct"],
-            errors="ignore"
+            columns=["transaction_id", "ts", "from_acct", "to_acct"], errors="ignore"
         )
 
         risk = float(pipe.predict_proba(X)[0, 1] * 100)
@@ -83,15 +84,9 @@ def main():
             sv = shap_vals[0] if isinstance(shap_vals, list) else shap_vals
             sv_row = sv[0]
 
-            top_idx = sorted(
-                range(len(sv_row)),
-                key=lambda i: abs(sv_row[i]),
-                reverse=True
-            )[:3]
+            top_idx = sorted(range(len(sv_row)), key=lambda i: abs(sv_row[i]), reverse=True)[:3]
 
-            reasons = ", ".join(
-                [f"{feature_names[i]}({sv_row[i]:+.3f})" for i in top_idx]
-            )
+            reasons = ", ".join([f"{feature_names[i]}({sv_row[i]:+.3f})" for i in top_idx])
 
         # Open -> insert -> close (prevents Windows file lock)
         with duckdb.connect(DB_PATH) as con:
@@ -118,8 +113,8 @@ def main():
                     from_acct,
                     to_acct,
                     risk,
-                    reasons
-                )
+                    reasons,
+                ),
             )
 
 

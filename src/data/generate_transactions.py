@@ -3,11 +3,20 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-MERCHANTS = ["GROCERY", "GAS", "ONLINE_RETAIL", "ELECTRONICS", "CRYPTO_EXCHANGE", "GIFT_CARDS", "WIRE_SERVICE"]
+MERCHANTS = [
+    "GROCERY",
+    "GAS",
+    "ONLINE_RETAIL",
+    "ELECTRONICS",
+    "CRYPTO_EXCHANGE",
+    "GIFT_CARDS",
+    "WIRE_SERVICE",
+]
 STATES = ["CA", "NY", "TX", "FL", "WA", "IL", "NJ", "MA"]
 
 # For AML graph edges (from_acct -> to_acct)
 N_ACCOUNTS = 2000
+
 
 def gen_txn(customer_id: int) -> dict:
     merchant = random.choice(MERCHANTS)
@@ -29,11 +38,9 @@ def gen_txn(customer_id: int) -> dict:
         "transaction_id": str(uuid.uuid4()),
         "ts": datetime.now(timezone.utc).isoformat(),
         "customer_id": customer_id,
-
         # AML graph edge
         "from_acct": from_acct,
         "to_acct": to_acct,
-
         "amount": round(amount, 2),
         "merchant_category": merchant,
         "state": random.choice(STATES),
@@ -43,11 +50,13 @@ def gen_txn(customer_id: int) -> dict:
         "velocity_1h": velocity_1h,
     }
 
+
 def stream_batch(n_customers=200, n_txns=50):
     for _ in range(n_txns):
         cid = random.randint(1, n_customers)
         yield gen_txn(cid)
         time.sleep(0.01)
+
 
 if __name__ == "__main__":
     for t in stream_batch():

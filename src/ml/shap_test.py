@@ -6,6 +6,7 @@ from src.data.generate_transactions import gen_txn
 
 MODEL_PATH = "artifacts/risk_model.joblib"
 
+
 def main():
     pipe = joblib.load(MODEL_PATH)
 
@@ -14,7 +15,10 @@ def main():
 
     # One sample transaction (like a bank event)
     txn = gen_txn(customer_id=101)
-    X = pd.DataFrame([txn]).drop(columns=["transaction_id", "ts"])
+    X = pd.DataFrame([txn]).drop(
+        columns=["transaction_id", "ts", "from_acct", "to_acct"],
+        errors="ignore",
+    )
 
     # Transform features
     X_trans = pre.transform(X)
@@ -35,6 +39,7 @@ def main():
     print("Sample risk drivers (top 5):")
     for i in top_idx:
         print(f" - {feature_names[i]}: {sv_row[i]:+.4f}")
+
 
 if __name__ == "__main__":
     main()

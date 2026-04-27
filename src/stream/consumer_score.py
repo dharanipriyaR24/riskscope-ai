@@ -12,6 +12,7 @@ BOOTSTRAP = "localhost:9092"
 
 ALERT_THRESHOLD = 80.0  # fraud risk %
 
+
 def main():
     print("Loading model...")
     pipe = joblib.load(MODEL_PATH)
@@ -24,11 +25,7 @@ def main():
     feature_names = list(pre.get_feature_names_out())
 
     # AML detector (graph)
-    aml_detector = AMLGraphDetector(
-        window_size=500,
-        fan_threshold=8,
-        degree_threshold=12
-    )
+    aml_detector = AMLGraphDetector(window_size=500, fan_threshold=8, degree_threshold=12)
     counter = 0
 
     consumer = KafkaConsumer(
@@ -47,8 +44,7 @@ def main():
         # --- AML graph feed (requires from_acct/to_acct in producer data) ---
         if "from_acct" in txn and "to_acct" in txn:
             aml_detector.add_transaction(
-                from_acct=int(txn["from_acct"]),
-                to_acct=int(txn["to_acct"])
+                from_acct=int(txn["from_acct"]), to_acct=int(txn["to_acct"])
             )
 
             aml_alerts = aml_detector.detect_mule()
@@ -61,8 +57,7 @@ def main():
 
         # --- Fraud model scoring (drop non-feature cols) ---
         X = pd.DataFrame([txn]).drop(
-            columns=["transaction_id", "ts", "from_acct", "to_acct"],
-            errors="ignore"
+            columns=["transaction_id", "ts", "from_acct", "to_acct"], errors="ignore"
         )
 
         risk = float(pipe.predict_proba(X)[0, 1] * 100)
@@ -75,15 +70,9 @@ def main():
             sv = shap_vals[0] if isinstance(shap_vals, list) else shap_vals
             sv_row = sv[0]
 
-            top_idx = sorted(
-                range(len(sv_row)),
-                key=lambda i: abs(sv_row[i]),
-                reverse=True
-            )[:3]
+            top_idx = sorted(range(len(sv_row)), key=lambda i: abs(sv_row[i]), reverse=True)[:3]
 
-            reasons = ", ".join(
-                [f"{feature_names[i]}({sv_row[i]:+.3f})" for i in top_idx]
-            )
+            reasons = ", ".join([f"{feature_names[i]}({sv_row[i]:+.3f})" for i in top_idx])
 
             print(
                 f"🚨 FRAUD ALERT | txn={txn.get('transaction_id')} customer={txn.get('customer_id')} "
@@ -96,6 +85,7 @@ def main():
         counter += 1
         if counter % 100 == 0:
             aml_detector.reset_window()
+
 
 if __name__ == "__main__":
     main()

@@ -26,5 +26,6 @@ def rule_score(txn: dict) -> float:
 
     return min(100.0, float(score))
 
+
 def blended_score(ml_risk_pct: float, rule_risk_pct: float, w_ml=0.7, w_rule=0.3) -> float:
     return float(w_ml * ml_risk_pct + w_rule * rule_risk_pct)

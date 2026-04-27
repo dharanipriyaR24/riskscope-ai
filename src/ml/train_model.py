@@ -10,6 +10,7 @@ from sklearn.ensemble import GradientBoostingClassifier
 
 from src.data.generate_transactions import gen_txn
 
+
 def make_label(df: pd.DataFrame) -> pd.Series:
     """
     Synthetic risk label:
@@ -17,14 +18,17 @@ def make_label(df: pd.DataFrame) -> pd.Series:
     0 = normal
     """
     score = (
-        (df["amount"] > 900).astype(int) +
-        (df["merchant_category"].isin(["CRYPTO_EXCHANGE", "GIFT_CARDS", "WIRE_SERVICE"])).astype(int) +
-        (df["is_new_device"] == 1).astype(int) +
-        (df["is_international"] == 1).astype(int) +
-        (df["velocity_1h"] >= 6).astype(int) +
-        ((df["hour"] <= 4) | (df["hour"] >= 23)).astype(int)
+        (df["amount"] > 900).astype(int)
+        + (df["merchant_category"].isin(["CRYPTO_EXCHANGE", "GIFT_CARDS", "WIRE_SERVICE"])).astype(
+            int
+        )
+        + (df["is_new_device"] == 1).astype(int)
+        + (df["is_international"] == 1).astype(int)
+        + (df["velocity_1h"] >= 6).astype(int)
+        + ((df["hour"] <= 4) | (df["hour"] >= 23)).astype(int)
     )
     return (score >= 3).astype(int)
+
 
 def main():
     print("Generating synthetic training data...")
@@ -38,8 +42,12 @@ def main():
 
     cat_features = ["merchant_category", "state"]
     num_features = [
-        "amount", "hour", "is_new_device",
-        "is_international", "velocity_1h", "customer_id"
+        "amount",
+        "hour",
+        "is_new_device",
+        "is_international",
+        "velocity_1h",
+        "customer_id",
     ]
 
     preprocessor = ColumnTransformer(
@@ -51,10 +59,7 @@ def main():
 
     model = GradientBoostingClassifier(random_state=42)
 
-    pipeline = Pipeline([
-        ("pre", preprocessor),
-        ("model", model)
-    ])
+    pipeline = Pipeline([("pre", preprocessor), ("model", model)])
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, stratify=y, random_state=42
@@ -70,6 +75,7 @@ def main():
 
     joblib.dump(pipeline, "artifacts/risk_model.joblib")
     print("Saved model to artifacts/risk_model.joblib")
+
 
 if __name__ == "__main__":
     main()
