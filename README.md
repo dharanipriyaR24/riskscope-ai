@@ -1,5 +1,16 @@
 # Risklens ai
 
+[![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
+[![SHAP](https://img.shields.io/badge/SHAP-1E3A5F)](https://github.com/slundberg/shap)
+[![DuckDB](https://img.shields.io/badge/DuckDB-FFD700?logo=duckdb&logoColor=black)](https://duckdb.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Kafka](https://img.shields.io/badge/Redpanda%20(Kafka)-000000?logo=apachekafka&logoColor=white)](https://redpanda.com/)
+[![Ollama](https://img.shields.io/badge/Ollama-000000?logo=ollama&logoColor=white)](https://ollama.com/)
+
+GitHub’s language bar is **mostly Python** because the application code is Python; **Docker Compose**, **DuckDB**, and **Kafka/Redpanda** still power the stack (see topics on the repo and badges above).
+
 **Real-time bank fraud scoring, explainable ML (SHAP), AML-style graph signals, and a local LLM copilot—wired together with Kafka (Redpanda), DuckDB, and Streamlit.**
 
 **Suggested GitHub About description (one line):** Real-time fraud and AML analytics: streaming risk scores, SHAP explanations, DuckDB storage, Streamlit dashboard, and Ollama copilot.
