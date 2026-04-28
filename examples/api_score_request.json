@@ -1,0 +1,10 @@
+{
+  "customer_id": 1042,
+  "amount": 2400.0,
+  "merchant_category": "GIFT_CARDS",
+  "state": "NY",
+  "hour": 2,
+  "is_new_device": 1,
+  "is_international": 0,
+  "velocity_1h": 10
+}

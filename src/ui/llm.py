@@ -1,7 +1,10 @@
+import os
+
 import requests
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "phi3:latest"  # matches your `ollama list`
+_base = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+OLLAMA_URL = f"{_base}/api/generate"
+MODEL = os.environ.get("OLLAMA_MODEL", "phi3:latest")
 
 
 def run_copilot(prompt: str) -> str:

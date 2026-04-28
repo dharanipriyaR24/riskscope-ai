@@ -1,6 +1,7 @@
-# Risklens ai
+# RiskLens AI
 
 [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
 [![SHAP](https://img.shields.io/badge/SHAP-1E3A5F)](https://github.com/slundberg/shap)
@@ -9,145 +10,175 @@
 [![Kafka](https://img.shields.io/badge/Redpanda%20(Kafka)-000000?logo=apachekafka&logoColor=white)](https://redpanda.com/)
 [![Ollama](https://img.shields.io/badge/Ollama-000000?logo=ollama&logoColor=white)](https://ollama.com/)
 
-GitHub’s language bar is **mostly Python** because the application code is Python; **Docker Compose**, **DuckDB**, and **Kafka/Redpanda** still power the stack (see topics on the repo and badges above).
+**End-to-end fraud risk:** train a model, expose a **FastAPI** service for real request/response, stream through Kafka, store in DuckDB, and review in Streamlit—with **SHAP** explainability and an **optional Ollama** narrative for “so what?” context.
 
-**Real-time bank fraud scoring, explainable ML (SHAP), AML-style graph signals, and a local LLM copilot—wired together with Kafka (Redpanda), DuckDB, and Streamlit.**
-
-**Suggested GitHub About description (one line):** Real-time fraud and AML analytics: streaming risk scores, SHAP explanations, DuckDB storage, Streamlit dashboard, and Ollama copilot.
+> **GitHub About (one line):** Real-time fraud risk API + SHAP + optional local LLM; Kafka, DuckDB, Streamlit, deployable container.
 
 ---
 
-## What this project is
+## 1. Problem
 
-Risklens ai is a **local, end-to-end demo** of how fraud and AML teams often combine:
+Banks and risk teams need a **fast, defensible risk signal** on every payment: not a black-box score, but **input → score + drivers** so an analyst (or an automations team) can act. This project simulates that:
 
-- **Streaming ingestion** of synthetic transactions (Kafka-compatible API via Redpanda).
-- **Gradient boosting** risk scores (scikit-learn pipeline with preprocessing).
-- **SHAP** explanations for high-risk events (top contributing features).
-- **DuckDB** as a fast analytical store for scored transactions and AML-oriented account flows.
-- **Streamlit** dashboard for alerts, AML fan-in/fan-out views, and ops notes.
-- **Optional copilot** using **Ollama** (for example Phi-3) for short investigation summaries—no cloud LLM required.
+- A **gradient-boosted** model scores transaction features.
+- **SHAP** explains *which* features moved the score (regulatory and ops-friendly).
+- A **REST API** exposes the same scoring path you would wire into internal tools (CRM, case queues, orchestration).
+- **Streaming** + **DuckDB** show how scores land in an analytical store for dashboards and AML-style graph views.
+- **Ollama** (local) can turn structured SHAP into a short **analyst narrative**—no cloud LLM required for a demo.
 
-It is intended for **learning and portfolio demos**, not production authorization of real transactions.
+This is a **portfolio / architecture demonstrator**, not a production authorization system.
 
 ---
 
-## Architecture
+## 2. Architecture
+
+**Request path (what to show in an interview):** caller → **FastAPI** → in-process **ML + SHAP** → JSON (optional **LLM** layer).
+
+```mermaid
+flowchart LR
+  subgraph client [Clients]
+    BFF[Internal tools / scripts]
+    UI[Streamlit]
+  end
+  subgraph core [Core]
+    API[FastAPI /v1/score]
+    ML[GBDT + SHAP]
+  end
+  subgraph data [Data plane]
+    K[Kafka / Redpanda]
+    C[Consumer + RiskEngine]
+    D[(DuckDB)]
+  end
+  BFF --> API
+  API --> ML
+  K --> C
+  C --> ML
+  C --> D
+  UI --> D
+  ML --> LLM[Ollama optional]
+```
+
+| Layer | What it does |
+|--------|----------------|
+| **API** `src/api/main.py` | `POST /v1/score` — transaction in, **risk % + SHAP** out; `?include_narrative=true` calls Ollama if available. |
+| **Engine** `src/services/risk_engine.py` | Single `RiskEngine` used by **API** and **Kafka consumer** (no duplicate model logic). |
+| **Stream** | Producer → Redpanda → consumer scores and **persists** to DuckDB. |
+| **UI** | Streamlit reads DuckDB; copilot uses the same Ollama client as the API narrative. |
+
+**System view (batch + stream):**
 
 ```text
-Producer (synthetic txns)
+  [ HTTP client / Postman ]
         |
         v
-  Redpanda (Kafka API)
+   +------------+
+   |  FastAPI   |  risk_score, shap_top, optional narrative
+   +------------+
         |
-        v
-  Consumer (score + SHAP -> DuckDB)
-        |
-        v
-  Streamlit dashboard (+ Ollama copilot)
+   +------------+     +----------+     +---------+
+   | RiskEngine |     | Redpanda | --> | Consumer | --> DuckDB --> Streamlit
+   +------------+     +----------+     +---------+
 ```
 
 ---
 
-## Repository layout
+## 3. Demo
+
+### A. Train the model (once)
+
+```bash
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python -m src.ml.train_model
+```
+
+This creates `artifacts/risk_model.joblib` (gitignored).
+
+### B. Run the API (main “product” demo)
+
+```bash
+uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+- **Interactive docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **Health:** `GET /health`
+
+**Score a transaction (high-risk shape — gift cards, night hour, velocity):**
+
+```bash
+curl -s -X POST "http://127.0.0.1:8000/v1/score" \
+  -H "Content-Type: application/json" \
+  -d @examples/api_score_request.json | jq .
+```
+
+**Include analyst narrative** (needs [Ollama](https://ollama.com) running, model pulled):
+
+```bash
+curl -s -X POST "http://127.0.0.1:8000/v1/score?include_narrative=true" \
+  -H "Content-Type: application/json" \
+  -d @examples/api_score_request.json | jq .
+```
+
+Optional env (Docker / cloud pointing at a remote Ollama):
+
+```bash
+export OLLAMA_HOST=http://127.0.0.1:11434
+export OLLAMA_MODEL=phi3:latest
+```
+
+### C. Container (optional)
+
+After training so `artifacts/risk_model.joblib` exists:
+
+```bash
+docker compose build api
+docker compose up api
+```
+
+API at **http://localhost:8000** (Ollama on the host: set `OLLAMA_HOST` to `http://host.docker.internal:11434` on Docker Desktop).
+
+### D. Full pipeline (stream + dashboard)
+
+```bash
+docker compose up -d
+python -m src.stream.consumer_to_db
+python -m src.stream.producer
+streamlit run src/ui/dashboard.py
+```
+
+### E. “Live” deploy (Render / Railway / Fly)
+
+1. Connect the GitHub repo.  
+2. **Build command:** `pip install -r requirements.txt` and **run** `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT` (or use the included `Procfile` on Heroku-style hosts).  
+3. **Upload or build** `artifacts/risk_model.joblib` in CI (run `python -m src.ml.train_model` in a build step) or store it in a release artifact.  
+4. For a **2-minute Loom-style** walkthrough, record: Swagger → `POST /v1/score` → show `shap_top` in the response.
+
+Record a **short video** (or Loom) showing: request JSON → response with `risk_score` and `shap_top` — that is the “interview-grade” demo.
+
+---
+
+## Repository layout (high level)
 
 | Path | Role |
 |------|------|
-| `src/stream/producer.py` | Publishes synthetic transactions to the `transactions` topic. |
-| `src/stream/consumer_to_db.py` | Consumes, scores, explains (above threshold), writes to DuckDB. |
-| `src/stream/consumer_score.py` | Console consumer with fraud alerts and in-memory AML graph hints. |
-| `src/ml/train_model.py` | Trains pipeline and saves `artifacts/risk_model.joblib`. |
-| `src/data/generate_transactions.py` | Synthetic transaction generator. |
-| `src/ui/dashboard.py` | Streamlit analyst UI. |
-| `src/ui/llm.py` | HTTP client for Ollama `/api/generate`. |
-| `src/aml/graph_detector.py` | Simple fan-in / fan-out mule-style heuristic. |
-| `docker-compose.yml` | Redpanda on `localhost:9092`. |
+| `src/api/main.py` | **FastAPI** app |
+| `src/api/schemas.py` | Request/response models |
+| `src/services/risk_engine.py` | **ML + SHAP** (shared) |
+| `src/stream/consumer_to_db.py` | Kafka → score → DuckDB |
+| `src/ui/dashboard.py` | Streamlit |
+| `src/ui/llm.py` | Ollama client (`OLLAMA_HOST`, `OLLAMA_MODEL`) |
+| `Dockerfile.api` | API container |
+| `docker-compose.yml` | Redpanda + optional **api** service |
+| `examples/api_score_request.json` | Sample **POST** body |
 
 ---
 
-## Prerequisites
+## Why the language bar is mostly Python
 
-- **Python 3.10+** (recommended)
-- **Docker** (for Redpanda)
-- **Ollama** (optional, for the copilot tab): https://ollama.com/download
-
----
-
-## Quick start
-
-1. **Install dependencies**
-
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-   On Windows: `.venv\Scripts\activate`
-
-2. **Train the model** (creates `artifacts/risk_model.joblib`)
-
-   ```bash
-   python -m src.ml.train_model
-   ```
-
-3. **Start Redpanda**
-
-   ```bash
-   docker compose up -d
-   ```
-
-4. **Run the pipeline** (separate terminals)
-
-   ```bash
-   python -m src.stream.consumer_to_db
-   ```
-
-   ```bash
-   python -m src.stream.producer
-   ```
-
-5. **Open the dashboard**
-
-   ```bash
-   streamlit run src/ui/dashboard.py
-   ```
-
-   Then open http://localhost:8501
-
-6. **Copilot (optional)**
-
-   ```bash
-   ollama pull phi3
-   ```
-
-   The app expects a model tag compatible with `src/ui/llm.py` (default: `phi3:latest`). Change `MODEL` there if your tag differs (`ollama list`).
-
----
-
-## Tech stack
-
-| Area | Technology |
-|------|------------|
-| Streaming | Redpanda (Kafka protocol) |
-| ML | scikit-learn (Gradient Boosting) |
-| Explainability | SHAP (TreeExplainer) |
-| Analytics DB | DuckDB |
-| UI | Streamlit |
-| Local LLM | Ollama |
-| Language | Python |
-
----
-
-## Example narrative
-
-1. A synthetic transaction streams in and receives a **risk percentage**.
-2. Above the alert threshold, **SHAP** surfaces a few top drivers (amount, category, velocity, and so on).
-3. The **dashboard** filters alerts and aggregates common reason tokens.
-4. The **copilot** drafts a concise analyst-style summary when Ollama is running.
+GitHub counts file types; this repo is **Python-first** (API, training, UI, consumers). The **stack** is still “ML + API + stream + DB + optional LLM” — use the **badges** and this README for the system story.
 
 ---
 
 ## License
 
-Add a `LICENSE` file in this repository if you plan to open-source under explicit terms.
+Add a `LICENSE` file if you open-source under explicit terms.

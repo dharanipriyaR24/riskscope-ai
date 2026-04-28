@@ -14,3 +14,15 @@ services:
       - --advertise-kafka-addr=PLAINTEXT://localhost:9092
     ports:
       - "9092:9092"
+
+  # Requires `artifacts/risk_model.joblib` (run: python -m src.ml.train_model) before `docker compose build api`
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
