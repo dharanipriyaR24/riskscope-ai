@@ -23,8 +23,8 @@ from src.ui.llm import run_copilot
 # =========================
 DB_PATH = "risklens.duckdb"
 
-st.set_page_config(page_title="RiskLens AI Dashboard", layout="wide")
-st.title("RiskLens AI — Bank Fraud Analyst Dashboard")
+st.set_page_config(page_title="RiskScope AI Dashboard", layout="wide")
+st.title("RiskScope AI — Bank Fraud Analyst Dashboard")
 
 # Read-only DB connection (avoids Windows lock issues)
 con = duckdb.connect(DB_PATH, read_only=True)

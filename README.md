@@ -1,4 +1,6 @@
-# RiskLens AI
+# RiskScope AI
+
+**Original portfolio project** (not affiliated with any commercial “RiskLens” product). Repo may appear as `riskscope-ai` on GitHub.
 
 [![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -10,38 +12,128 @@
 [![Kafka](https://img.shields.io/badge/Redpanda%20(Kafka)-000000?logo=apachekafka&logoColor=white)](https://redpanda.com/)
 [![Ollama](https://img.shields.io/badge/Ollama-000000?logo=ollama&logoColor=white)](https://ollama.com/)
 
-**End-to-end fraud risk:** train a model, expose a **FastAPI** service for real request/response, stream through Kafka, store in DuckDB, and review in Streamlit—with **SHAP** explainability and an **optional Ollama** narrative for “so what?” context.
-
-> **GitHub About (one line):** Real-time fraud risk API + SHAP + optional local LLM; Kafka, DuckDB, Streamlit, deployable container.
+> **GitHub About (one line):** Decision risk API: transaction in → score + SHAP explanations + optional local LLM; Kafka, DuckDB, Streamlit, Docker-ready.
 
 ---
 
-## 1. Problem
+## What this does
 
-Banks and risk teams need a **fast, defensible risk signal** on every payment: not a black-box score, but **input → score + drivers** so an analyst (or an automations team) can act. This project simulates that:
-
-- A **gradient-boosted** model scores transaction features.
-- **SHAP** explains *which* features moved the score (regulatory and ops-friendly).
-- A **REST API** exposes the same scoring path you would wire into internal tools (CRM, case queues, orchestration).
-- **Streaming** + **DuckDB** show how scores land in an analytical store for dashboards and AML-style graph views.
-- **Ollama** (local) can turn structured SHAP into a short **analyst narrative**—no cloud LLM required for a demo.
-
-This is a **portfolio / architecture demonstrator**, not a production authorization system.
+This system takes **structured input** (a payment-like transaction), runs **feature processing + a trained model**, and returns a **risk score** plus **human-readable explanations** (SHAP feature impact, optional short narrative via Ollama). Use it as a pattern for **internal tools, queues, or automation**—not as production bank authorization.
 
 ---
 
-## 2. Architecture
+## How it works
 
-**Request path (what to show in an interview):** caller → **FastAPI** → in-process **ML + SHAP** → JSON (optional **LLM** layer).
+**Input → feature row → model → risk score → explanation output**
+
+| Step | What happens |
+|------|----------------|
+| **Input** | JSON: amount, merchant category, velocity, device flags, etc. |
+| **Processing** | scikit-learn pipeline (one-hot categoricals + numeric passthrough). |
+| **Model** | Gradient Boosting classifier → fraud risk as **percentage**. |
+| **Output** | `risk_score`, `shap_top` (which features pushed risk up/down), optional **LLM narrative**. |
+
+**Optional data plane:** Kafka (Redpanda) → consumer (same `RiskEngine`) → **DuckDB** → **Streamlit** dashboard.
+
+---
+
+## Run this NOW (under 2 minutes)
+
+From the repo root (fresh venv recommended):
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python -m src.ml.train_model
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
+
+Open **http://127.0.0.1:8000/docs** → try **`POST /analyze-risk`** with the example body below.
+
+---
+
+## Demo
+
+**Best proof for a hiring manager:** a **~90 second Loom** (or screen recording): open `/docs`, paste the JSON, run **`POST /analyze-risk`**, point at `risk_score` and `shap_top` in the response.
+
+**Paste your video link here after you record:**
+
+`[YOUR_LOOM_OR_YOUTUBE_LINK]`
+
+Until then, reviewers can still **run locally** with the commands above or hit a deployed URL if you add one (Render / Railway / Fly — see bottom).
+
+---
+
+## API example
+
+**Endpoint:** `POST /analyze-risk` (alias: `POST /v1/score`)
+
+**Input** (minimal example — file: `examples/api_score_request.json`):
+
+```json
+{
+  "customer_id": 1042,
+  "amount": 2400.0,
+  "merchant_category": "GIFT_CARDS",
+  "state": "NY",
+  "hour": 2,
+  "is_new_device": 1,
+  "is_international": 0,
+  "velocity_1h": 10
+}
+```
+
+**curl:**
+
+```bash
+curl -s -X POST "http://127.0.0.1:8000/analyze-risk" \
+  -H "Content-Type: application/json" \
+  -d @examples/api_score_request.json | jq .
+```
+
+**Output** (shape — values depend on trained weights):
+
+```json
+{
+  "risk_score": 72.4,
+  "risk_score_pct": "72.40%",
+  "alert": false,
+  "risk_model_tag": "sklearn_gbdt + shap",
+  "shap_top": [
+    {"feature": "...", "shap_value": 0.12, "direction": "increases_risk"}
+  ],
+  "reasons_short": "...",
+  "narrative": null
+}
+```
+
+**Optional analyst narrative** (local [Ollama](https://ollama.com)):
+
+```bash
+curl -s -X POST "http://127.0.0.1:8000/analyze-risk?include_narrative=true" \
+  -H "Content-Type: application/json" \
+  -d @examples/api_score_request.json | jq .
+```
+
+```bash
+export OLLAMA_HOST=http://127.0.0.1:11434
+export OLLAMA_MODEL=phi3:latest
+```
+
+---
+
+## Architecture
+
+**Synchronous API path (what to show first in an interview):**
 
 ```mermaid
 flowchart LR
   subgraph client [Clients]
-    BFF[Internal tools / scripts]
+    BFF[Scripts / Postman / internal tools]
     UI[Streamlit]
   end
   subgraph core [Core]
-    API[FastAPI /v1/score]
+    API[FastAPI POST /analyze-risk]
     ML[GBDT + SHAP]
   end
   subgraph data [Data plane]
@@ -58,86 +150,32 @@ flowchart LR
   ML --> LLM[Ollama optional]
 ```
 
-| Layer | What it does |
-|--------|----------------|
-| **API** `src/api/main.py` | `POST /v1/score` — transaction in, **risk % + SHAP** out; `?include_narrative=true` calls Ollama if available. |
-| **Engine** `src/services/risk_engine.py` | Single `RiskEngine` used by **API** and **Kafka consumer** (no duplicate model logic). |
-| **Stream** | Producer → Redpanda → consumer scores and **persists** to DuckDB. |
-| **UI** | Streamlit reads DuckDB; copilot uses the same Ollama client as the API narrative. |
-
-**System view (batch + stream):**
-
 ```text
-  [ HTTP client / Postman ]
+  [ HTTP client ]
         |
         v
-   +------------+
-   |  FastAPI   |  risk_score, shap_top, optional narrative
-   +------------+
+   +------------------+
+   | POST /analyze-risk |  risk_score, shap_top, optional narrative
+   +------------------+
         |
    +------------+     +----------+     +---------+
    | RiskEngine |     | Redpanda | --> | Consumer | --> DuckDB --> Streamlit
    +------------+     +----------+     +---------+
 ```
 
+| Path | Role |
+|------|------|
+| `src/api/main.py` | **FastAPI** — `/analyze-risk`, `/v1/score`, `/health` |
+| `src/api/schemas.py` | Request/response models |
+| `src/services/risk_engine.py` | **ML + SHAP** (shared by API + Kafka consumer) |
+| `src/stream/consumer_to_db.py` | Kafka → score → DuckDB |
+| `src/ui/dashboard.py` | Streamlit |
+| `Dockerfile.api` / `docker-compose.yml` | API container + Redpanda |
+| `Procfile` | PaaS web process |
+
 ---
 
-## 3. Demo
-
-### A. Train the model (once)
-
-```bash
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python -m src.ml.train_model
-```
-
-This creates `artifacts/risk_model.joblib` (gitignored).
-
-### B. Run the API (main “product” demo)
-
-```bash
-uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-- **Interactive docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **Health:** `GET /health`
-
-**Score a transaction (high-risk shape — gift cards, night hour, velocity):**
-
-```bash
-curl -s -X POST "http://127.0.0.1:8000/v1/score" \
-  -H "Content-Type: application/json" \
-  -d @examples/api_score_request.json | jq .
-```
-
-**Include analyst narrative** (needs [Ollama](https://ollama.com) running, model pulled):
-
-```bash
-curl -s -X POST "http://127.0.0.1:8000/v1/score?include_narrative=true" \
-  -H "Content-Type: application/json" \
-  -d @examples/api_score_request.json | jq .
-```
-
-Optional env (Docker / cloud pointing at a remote Ollama):
-
-```bash
-export OLLAMA_HOST=http://127.0.0.1:11434
-export OLLAMA_MODEL=phi3:latest
-```
-
-### C. Container (optional)
-
-After training so `artifacts/risk_model.joblib` exists:
-
-```bash
-docker compose build api
-docker compose up api
-```
-
-API at **http://localhost:8000** (Ollama on the host: set `OLLAMA_HOST` to `http://host.docker.internal:11434` on Docker Desktop).
-
-### D. Full pipeline (stream + dashboard)
+## Full stack (streaming + dashboard)
 
 ```bash
 docker compose up -d
@@ -146,36 +184,26 @@ python -m src.stream.producer
 streamlit run src/ui/dashboard.py
 ```
 
-### E. “Live” deploy (Render / Railway / Fly)
+**API in Docker** (after `python -m src.ml.train_model` so `artifacts/risk_model.joblib` exists):
 
-1. Connect the GitHub repo.  
-2. **Build command:** `pip install -r requirements.txt` and **run** `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT` (or use the included `Procfile` on Heroku-style hosts).  
-3. **Upload or build** `artifacts/risk_model.joblib` in CI (run `python -m src.ml.train_model` in a build step) or store it in a release artifact.  
-4. For a **2-minute Loom-style** walkthrough, record: Swagger → `POST /v1/score` → show `shap_top` in the response.
-
-Record a **short video** (or Loom) showing: request JSON → response with `risk_score` and `shap_top` — that is the “interview-grade” demo.
+```bash
+docker compose build api && docker compose up api
+```
 
 ---
 
-## Repository layout (high level)
+## Deploy (hosted demo)
 
-| Path | Role |
-|------|------|
-| `src/api/main.py` | **FastAPI** app |
-| `src/api/schemas.py` | Request/response models |
-| `src/services/risk_engine.py` | **ML + SHAP** (shared) |
-| `src/stream/consumer_to_db.py` | Kafka → score → DuckDB |
-| `src/ui/dashboard.py` | Streamlit |
-| `src/ui/llm.py` | Ollama client (`OLLAMA_HOST`, `OLLAMA_MODEL`) |
-| `Dockerfile.api` | API container |
-| `docker-compose.yml` | Redpanda + optional **api** service |
-| `examples/api_score_request.json` | Sample **POST** body |
+1. Connect this repo on **Render / Railway / Fly**.  
+2. Install + run: `pip install -r requirements.txt` then `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT` (or use `Procfile`).  
+3. In CI or build step, run `python -m src.ml.train_model` and ship `artifacts/risk_model.joblib` (or cache as a build artifact).  
+4. Put the **public `/docs` URL** in your email and in the Demo section above.
 
 ---
 
-## Why the language bar is mostly Python
+## Why GitHub shows mostly Python
 
-GitHub counts file types; this repo is **Python-first** (API, training, UI, consumers). The **stack** is still “ML + API + stream + DB + optional LLM” — use the **badges** and this README for the system story.
+Linguist counts file types; the product story is **API + ML + stream + DB** — see badges and this README.
 
 ---
 

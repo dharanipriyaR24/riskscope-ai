@@ -1,5 +1,5 @@
 """
-RiskLens FastAPI — synchronous fraud score + SHAP (+ optional Ollama narrative).
+RiskScope AI — FastAPI: fraud risk score + SHAP (+ optional Ollama narrative).
 
 Run from repo root:
   uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
@@ -37,10 +37,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="RiskLens AI API",
+    title="RiskScope AI API",
     description=(
-        "Score a single transaction with an in-process GBDT model + SHAP explanations. "
-        "Optional local-LLM narrative via Ollama."
+        "Analyze transaction risk with an in-process GBDT model + SHAP explanations. "
+        "Optional local-LLM narrative via Ollama. "
+        "Use POST /analyze-risk or POST /v1/score (same behavior)."
     ),
     version="1.0.0",
     lifespan=lifespan,
@@ -55,35 +56,7 @@ app.add_middleware(
 )
 
 
-@app.get("/")
-def root():
-    return {
-        "service": "risklens-api",
-        "docs": "/docs",
-        "health": "/health",
-        "score": "POST /v1/score",
-    }
-
-
-@app.get("/health")
-def health():
-    ok = state.engine is not None
-    return {
-        "status": "ok" if ok else "degraded",
-        "model_loaded": ok,
-        "detail": state.load_error,
-    }
-
-
-@app.post("/v1/score", response_model=ScoreOut)
-def score_transaction(
-    body: TransactionIn,
-    include_narrative: bool = False,
-):
-    """
-    Input: transaction features. Output: risk %, SHAP top drivers, optional LLM narrative.
-    Set include_narrative=true if Ollama is running (see README).
-    """
+def _score(body: TransactionIn, include_narrative: bool) -> ScoreOut:
     if state.engine is None:
         raise HTTPException(
             status_code=503,
@@ -113,3 +86,45 @@ def score_transaction(
         reasons_short=result.reasons_str,
         narrative=narrative,
     )
+
+
+@app.get("/")
+def root():
+    return {
+        "service": "riskscope-ai",
+        "product": "RiskScope AI",
+        "docs": "/docs",
+        "health": "/health",
+        "analyze_risk": "POST /analyze-risk",
+        "score_v1": "POST /v1/score",
+    }
+
+
+@app.get("/health")
+def health():
+    ok = state.engine is not None
+    return {
+        "status": "ok" if ok else "degraded",
+        "model_loaded": ok,
+        "detail": state.load_error,
+    }
+
+
+@app.post("/analyze-risk", response_model=ScoreOut)
+def analyze_risk(
+    body: TransactionIn,
+    include_narrative: bool = False,
+):
+    """
+    Primary “product” endpoint: transaction in → risk score + SHAP drivers (+ optional narrative).
+    """
+    return _score(body, include_narrative)
+
+
+@app.post("/v1/score", response_model=ScoreOut)
+def score_transaction(
+    body: TransactionIn,
+    include_narrative: bool = False,
+):
+    """Same as POST /analyze-risk (versioned alias)."""
+    return _score(body, include_narrative)
