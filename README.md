@@ -173,23 +173,6 @@ python -m src.stream.producer
 streamlit run src/ui/dashboard.py
 ```
 
-**API in Docker** (after `python -m src.ml.train_model` so `artifacts/risk_model.joblib` exists):
-
-```bash
-docker compose build api && docker compose up api
-```
-
----
-
-## Deploy (hosted demo)
-
-1. Connect this repo on **Render / Railway / Fly**.  
-2. Install + run: `pip install -r requirements.txt` then `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT` (or use `Procfile`).  
-3. In CI or build step, run `python -m src.ml.train_model` and ship `artifacts/risk_model.joblib` (or cache as a build artifact).  
-4. Put the **public `/docs` URL** in your email and in the Demo section above.
-
----
-
 ## Why GitHub shows mostly Python
 
 Linguist counts file types; the product story is **API + ML + stream + DB** — see badges and this README.
