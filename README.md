@@ -50,17 +50,6 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 
 Open **http://127.0.0.1:8000/docs** → try **`POST /analyze-risk`** with the example body below.
 
----
-
-## Demo
-
-**Best proof for a hiring manager:** a **~90 second Loom** (or screen recording): open `/docs`, paste the JSON, run **`POST /analyze-risk`**, point at `risk_score` and `shap_top` in the response.
-
-**Paste your video link here after you record:**
-
-`[YOUR_LOOM_OR_YOUTUBE_LINK]`
-
-Until then, reviewers can still **run locally** with the commands above or hit a deployed URL if you add one (Render / Railway / Fly — see bottom).
 
 ---
 
