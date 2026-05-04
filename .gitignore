@@ -14,8 +14,9 @@ artifacts/*.joblib
 .DS_Store
 Thumbs.db
 
-# Streamlit
-.streamlit/
+# Streamlit (keep committed defaults; ignore local secrets/overrides)
+.streamlit/*
+!.streamlit/config.toml
 
 # Docker
 *.log
