@@ -8,12 +8,41 @@ TOPIC = "transactions"
 BOOTSTRAP = "localhost:9092"
 DB_PATH = "risklens.duckdb"
 
+"""
+SQL analytics visibility (DuckDB)
+
+The Streamlit dashboard and ad-hoc analyst workflows typically query the same table
+written by this consumer: `scored_transactions`.
+
+Common examples analysts run:
+
+1) Latest high-risk alerts
+   SELECT transaction_id, ts, customer_id, amount, merchant_category, state, risk_score, reasons
+   FROM scored_transactions
+   WHERE risk_score >= 70
+   ORDER BY ts DESC
+   LIMIT 200;
+
+2) Risk distribution (bucket by rounded score)
+   SELECT ROUND(risk_score) AS risk_bucket, COUNT(*) AS n
+   FROM scored_transactions
+   GROUP BY 1
+   ORDER BY 1;
+
+3) Top merchant categories among risky alerts
+   SELECT merchant_category, COUNT(*) AS n
+   FROM scored_transactions
+   WHERE risk_score >= 70
+   GROUP BY 1
+   ORDER BY n DESC
+   LIMIT 10;
+"""
+
 
 def init_db():
     # Create table once
     with duckdb.connect(DB_PATH) as con:
-        con.execute(
-            """
+        con.execute("""
             CREATE TABLE IF NOT EXISTS scored_transactions (
                 transaction_id VARCHAR,
                 ts VARCHAR,
@@ -30,8 +59,7 @@ def init_db():
                 risk_score DOUBLE,
                 reasons VARCHAR
             );
-        """
-        )
+        """)
 
 
 def main():
