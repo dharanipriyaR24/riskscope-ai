@@ -245,7 +245,7 @@ LIMIT 10;
 1. Connect this repo on **Render / Railway / Fly**.  
 2. Install + run: `pip install -r requirements.txt` then `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT` (or use `Procfile`).  
 3. In CI or build step, run `python -m src.ml.train_model` and ship `artifacts/risk_model.joblib` (or cache as a build artifact).  
-4. Put the **public `/docs` URL** in your email and in the Demo section above.
+4. Share the **public `/docs` URL** anywhere you link the project (portfolio, email, résumé).
 
 ---
 ## Why GitHub shows mostly Python
